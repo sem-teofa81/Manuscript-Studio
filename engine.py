@@ -75,11 +75,12 @@ def chapters(blocks):
     return [(('Introduzione' if s==0 and s!=indexes[0] else blocks[s]['text']),s, starts[j+1] if j+1<len(starts) else len(blocks)) for j,s in enumerate(starts)]
 
 from diagrams import parse_tree, tree_drawing, flow_drawing
+from frontmatter import title_page, copyright_page, pdf_toc, IndexedDocTemplate
 
 def export_pdf(blocks,opts):
     buf=io.BytesIO();page_width=float(opts.get('width',6))*inch;page_height=float(opts.get('height',9))*inch
     margin=float(opts.get('margin',0.7))*inch
-    pdf=SimpleDocTemplate(buf,pagesize=(page_width,page_height),leftMargin=margin,rightMargin=margin,topMargin=margin,bottomMargin=margin, title=opts.get('title','Manoscritto'))
+    pdf=IndexedDocTemplate(buf,pagesize=(page_width,page_height),leftMargin=margin,rightMargin=margin,topMargin=margin,bottomMargin=margin, title=opts.get('title','Manoscritto'))
     base=float(opts.get('font_size',9.5));leading=base*1.45
     styles={
       'body':ParagraphStyle('BodyKDP',fontName='KDPSerif',fontSize=base,leading=leading,alignment=TA_JUSTIFY,spaceAfter=8),
@@ -89,12 +90,19 @@ def export_pdf(blocks,opts):
     for i in range(1,7):
         styles[f'h{i}']=ParagraphStyle(f'Heading{i}KDP',fontName='KDPSerif-Bold',fontSize=max(base+1,19-2*(i-1)),leading=max(base+4,23-2*(i-1)),spaceBefore=15 if i==1 else 10,spaceAfter=9,keepWithNext=True)
     story=[];number=0
+    available_height=page_height-2*margin
+    if opts.get('title_page',True):story.extend(title_page(opts,page_width-2*margin,available_height))
+    if opts.get('copyright_page',True):story.extend(copyright_page(opts))
+    if opts.get('toc',True):
+        toc,parts=pdf_toc();story.extend(parts)
     for idx,b in enumerate(blocks):
         typ=b.get('kind','paragraph');txt=escape(b.get('text','')).replace('\n','<br/>')
         if typ=='heading':
             lvl=min(6,max(1,int(b.get('level',1))))
             if lvl==1 and opts.get('chapter_breaks',True) and story:story.append(PageBreak())
-            story.append(Paragraph(txt,styles[f'h{lvl}']))
+            heading=Paragraph(txt,styles[f'h{lvl}'])
+            if lvl<=2:heading._toc_level=lvl
+            story.append(heading)
         elif typ=='paragraph':story.append(Paragraph(txt,styles['body']))
         elif typ=='bullet':story.append(Paragraph(escape(BULLETS.get(opts.get('bullet','Pallino'),'•'))+'  '+txt,styles['bullet']))
         elif typ=='number':
@@ -113,7 +121,7 @@ def export_pdf(blocks,opts):
                 story.append(t);story.append(Spacer(1,10))
     def footer(canvas,doc):
         canvas.setFont('KDPSerif',8);canvas.drawCentredString(page_width/2,margin*.55,str(doc.page))
-    pdf.build(story,onFirstPage=footer,onLaterPages=footer)
+    pdf.multiBuild(story,onFirstPage=footer,onLaterPages=footer)
     return buf.getvalue()
 
 def export_docx(blocks,opts):
@@ -121,7 +129,31 @@ def export_docx(blocks,opts):
     section.page_width=int(float(opts.get('width',6))*914400);section.page_height=int(float(opts.get('height',9))*914400)
     for k in ('top_margin','bottom_margin','left_margin','right_margin'):setattr(section,k,int(float(opts.get('margin',.7))*914400))
     from docx.shared import Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
     normal=doc.styles['Normal'];normal.font.name='DejaVu Serif';normal.font.size=Pt(float(opts.get('font_size',9.5)))
+    if opts.get('title_page',True):
+        doc.add_paragraph('\\n'*5)
+        p=doc.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+        r=p.add_run(opts.get('title','Manoscritto'));r.bold=True;r.font.size=Pt(22)
+        for key in ('subtitle','author'):
+            if opts.get(key):
+                p=doc.add_paragraph(opts[key]);p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+        doc.add_page_break()
+    if opts.get('copyright_page',True):
+        doc.add_paragraph('© '+str(opts.get('year',''))+' '+opts.get('author',''))
+        doc.add_paragraph('Tutti i diritti riservati.')
+        if opts.get('isbn'):doc.add_paragraph('ISBN: '+opts['isbn'])
+        if opts.get('edition'):doc.add_paragraph(opts['edition'])
+        if opts.get('copyright_note'):doc.add_paragraph(opts['copyright_note'])
+        doc.add_page_break()
+    if opts.get('toc',True):
+        doc.add_heading('Indice',0)
+        p=doc.add_paragraph()
+        fld=OxmlElement('w:fldSimple');fld.set(qn('w:instr'),'TOC \\o "1-2" \\h \\z \\u')
+        p._p.append(fld)
+        doc.add_page_break()
     for b in blocks:
         typ=b.get('kind');txt=b.get('text','')
         if typ=='heading':
