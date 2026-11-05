@@ -1,10 +1,12 @@
 import json,re
+from datetime import date
+from frontmatter import export_front_cover
 import streamlit as st
 from engine import import_docx,import_google_doc,chapters,export_pdf,export_docx,block,BULLETS
 st.set_page_config(page_title='KDP Manuscript Studio',layout='wide')
 st.title('KDP Manuscript Studio')
 if 'blocks' not in st.session_state: st.session_state.blocks=[]
-if 'opts' not in st.session_state: st.session_state.opts=dict(width=6.,height=9.,margin=.7,font_size=9.5,bullet='Pallino',chapter_breaks=True,title='Manoscritto')
+if 'opts' not in st.session_state: st.session_state.opts=dict(width=6.,height=9.,margin=.7,font_size=9.5,bullet='Pallino',chapter_breaks=True,title='Manoscritto',subtitle='',author='',year=str(date.today().year),isbn='',edition='Prima edizione',copyright_note='',title_page=True,copyright_page=True,toc=True)
 with st.sidebar:
     st.header('Importazione')
     file=st.file_uploader('DOCX esportato da Google Docs',type='docx')
@@ -27,10 +29,22 @@ with st.sidebar:
     st.divider();st.header('Impostazioni globali')
     o=st.session_state.opts
     o['title']=st.text_input('Titolo',o['title'])
+    st.subheader('Pagine iniziali e indice')
+    o['subtitle']=st.text_input('Sottotitolo',o.get('subtitle',''))
+    o['author']=st.text_input('Autore',o.get('author',''))
+    o['year']=st.text_input('Anno copyright',o.get('year',str(date.today().year)))
+    o['isbn']=st.text_input('ISBN (facoltativo)',o.get('isbn',''))
+    o['edition']=st.text_input('Edizione',o.get('edition','Prima edizione'))
+    o['copyright_note']=st.text_area('Note editoriali / diritti',o.get('copyright_note',''),height=70)
+    o['title_page']=st.checkbox('Pagina del titolo',value=o.get('title_page',True))
+    o['copyright_page']=st.checkbox('Pagina dei diritti',value=o.get('copyright_page',True))
+    o['toc']=st.checkbox('Indice automatico H1–H2',value=o.get('toc',True))
     o['bullet']=st.selectbox('Simbolo elenchi',list(BULLETS),index=list(BULLETS).index(o['bullet']))
     for k,label,minimum,maximum,step in [('width','Larghezza pollici',4.,9.,.25),('height','Altezza pollici',6.,12.,.25),('margin','Margini pollici',.3,1.2,.05),('font_size','Dimensione testo pt',8.,14.,.25)]:
         o[k]=st.number_input(label,minimum,maximum,float(o[k]),step)
     o['chapter_breaks']=st.checkbox('Capitoli su nuova pagina',value=o['chapter_breaks'])
+    st.download_button('Esporta bozza piatto anteriore (PDF)',export_front_cover(o),'bozza_piatto_anteriore.pdf','application/pdf',use_container_width=True)
+    st.caption('Il piatto anteriore è una bozza separata: per la copertina KDP completa servono anche dorso, retro e abbondanze, calcolati sul numero finale di pagine e sul tipo di carta.')
     if st.session_state.blocks:
         st.download_button('Esporta PDF',export_pdf(st.session_state.blocks,o),'manoscritto_kdp.pdf','application/pdf',use_container_width=True)
         st.download_button('Esporta DOCX',export_docx(st.session_state.blocks,o),'manoscritto_editabile.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document',use_container_width=True)
