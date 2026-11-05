@@ -49,7 +49,7 @@ else:
     with right:
         title,start,end=sections[selection]
         st.subheader(title)
-        kinds=['paragraph','heading','bullet','number','tree','table']
+        kinds=['paragraph','heading','bullet','number','tree','flow','table']
         for i in range(start,end):
             b=blocks[i]
             with st.expander(f'{i+1} · {b["kind"]} · {b.get("text","")[:65]}',expanded=i==start):
@@ -58,7 +58,7 @@ else:
                 if b['kind']=='table':
                     value=st.text_area('Righe; colonne separate da |','\n'.join(' | '.join(row) for row in b['items']),key=f'table{i}')
                     b['items']=[[x.strip() for x in line.split('|')] for line in value.splitlines() if line.strip()]
-                else:b['text']=st.text_area('Testo',b.get('text',''),key=f'text{i}',height=140 if b['kind']=='tree' else 80)
+                else:b['text']=st.text_area('Testo',b.get('text',''),key=f'text{i}',height=170 if b['kind'] in ('tree','flow') else 80)
                 a,c,d=st.columns(3)
                 if a.button('Aggiungi sotto',key=f'add{i}'):
                     blocks.insert(i+1,block('paragraph','Nuovo paragrafo'));st.rerun()
@@ -71,3 +71,9 @@ else:
         tree=st.text_area('Schema testuale',height=130)
         if st.button('Inserisci figura ad albero',disabled=not tree.strip()):
             blocks.insert(end,block('tree',tree));st.rerun()
+
+        st.subheader('Nuovo diagramma di flusso')
+        st.caption('Una riga per nodo: START: Inizio, ACTION: Operazione, DECISION: Domanda? | Sì | No, END: Fine. Le etichette dei rami sono descrittive; per percorsi ramificati complessi serve una struttura esplicita.')
+        flow=st.text_area('Passaggi del flusso',value='START: Inizio\nACTION: Leggi il testo\nDECISION: Hai capito? | Sì | No\nACTION: Scrivi il riassunto\nEND: Fine',height=160)
+        if st.button('Inserisci diagramma di flusso',disabled=not flow.strip()):
+            blocks.insert(end,block('flow',flow));st.rerun()
