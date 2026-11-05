@@ -45,6 +45,9 @@ with st.sidebar:
     for k,label,minimum,maximum,step in [('width','Larghezza pollici',4.,9.,.25),('height','Altezza pollici',6.,12.,.25),('margin','Margini pollici',.3,1.2,.05),('font_size','Dimensione testo pt',8.,14.,.25)]:
         o[k]=st.number_input(label,minimum,maximum,float(o[k]),step)
     o['chapter_breaks']=st.checkbox('Capitoli su nuova pagina',value=o['chapter_breaks'])
+    o['chapters_recto']=st.checkbox('Capitoli su pagina dispari (destra / recto)',value=o.get('chapters_recto',True),disabled=not o['chapter_breaks'])
+    o['gutter']=st.number_input('Margine interno aggiuntivo (pollici)',min_value=0.0,max_value=0.5,value=float(o.get('gutter',0.12)),step=0.02)
+    st.caption('Stampa KDP: le pagine dispari sono a destra. Se necessario viene inserita una pagina bianca a sinistra; il frontespizio e la pagina dei diritti non mostrano il numero di pagina.')
     st.download_button('Esporta bozza piatto anteriore (PDF)',export_front_cover(o),'bozza_piatto_anteriore.pdf','application/pdf',use_container_width=True)
     st.caption('Il piatto anteriore è una bozza separata: per la copertina KDP completa servono anche dorso, retro e abbondanze, calcolati sul numero finale di pagine e sul tipo di carta.')
     if st.session_state.blocks:
