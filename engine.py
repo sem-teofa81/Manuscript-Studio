@@ -74,45 +74,7 @@ def chapters(blocks):
     starts=([0] if indexes[0]>0 else [])+indexes
     return [(('Introduzione' if s==0 and s!=indexes[0] else blocks[s]['text']),s, starts[j+1] if j+1<len(starts) else len(blocks)) for j,s in enumerate(starts)]
 
-def parse_tree(text):
-    """Accept indented lines or Unicode box drawing. No invented hierarchy."""
-    nodes=[];stack=[]
-    for raw in text.splitlines():
-        if not raw.strip():continue
-        prefix=re.match(r'^[\s│├└─+|\\-]*',raw).group(0)
-        label=raw[len(prefix):].strip()
-        if not label:continue
-        depth=max(len(prefix.expandtabs(4))//4, prefix.count('│')+int('├' in prefix or '└' in prefix))
-        depth=min(depth,len(stack))
-        while len(stack)>depth:stack.pop()
-        node={'label':label,'children':[]}
-        if stack:stack[-1]['children'].append(node)
-        else:nodes.append(node)
-        stack.append(node)
-    return nodes
-
-def tree_drawing(text,width=370):
-    nodes=parse_tree(text)
-    flat=[]
-    def visit(ns,d):
-        for n in ns:
-            flat.append((n,d));visit(n['children'],d+1)
-    visit(nodes,0)
-    if not flat:return Paragraph('Schema vuoto',getSampleStyleSheet()['Normal'])
-    line_h=25; height=max(55, len(flat)*line_h+22)
-    drawing=Drawing(width,height)
-    for i,(node,d) in enumerate(flat):
-        x=10+d*31;y=height-30-i*line_h
-        w=max(68,min(width-x-8,len(node['label'])*6.2+18))
-        drawing.add(Rect(x,y-8,w,20,rx=4,ry=4,strokeColor=colors.HexColor('#658B9A'),fillColor=colors.HexColor('#EDF5F7')))
-        label=node['label'][:max(8,int((w-14)/6.2))]
-        drawing.add(String(x+8,y-2,label,fontName='KDPSerif',fontSize=8))
-        if d:
-            parent_idx=next((j for j in range(i-1,-1,-1) if flat[j][1]==d-1),None)
-            if parent_idx is not None:
-                px=10+(d-1)*31+15;py=height-30-parent_idx*line_h-8
-                drawing.add(Line(px,py,x,y+2,strokeColor=colors.HexColor('#658B9A'),strokeWidth=.8))
-    return drawing
+from diagrams import parse_tree, tree_drawing, flow_drawing
 
 def export_pdf(blocks,opts):
     buf=io.BytesIO();page_width=float(opts.get('width',6))*inch;page_height=float(opts.get('height',9))*inch
@@ -137,7 +99,10 @@ def export_pdf(blocks,opts):
         elif typ=='bullet':story.append(Paragraph(escape(BULLETS.get(opts.get('bullet','Pallino'),'•'))+'  '+txt,styles['bullet']))
         elif typ=='number':
             number+=1;story.append(Paragraph(f'{number}.  '+txt,styles['number']))
-        elif typ=='tree':story.append(tree_drawing(b.get('text',''),page_width-2*margin));story.append(Spacer(1,9))
+        elif typ in ('tree','flow'):
+            available=page_width-2*margin-12
+            drawing=tree_drawing(b.get('text',''),available) if typ=='tree' else flow_drawing(b.get('text',''),available)
+            story.append(drawing);story.append(Spacer(1,9))
         elif typ=='table':
             rows=b.get('items',[])
             if rows:
@@ -170,6 +135,6 @@ def export_docx(blocks,opts):
                 t=doc.add_table(rows=len(rows),cols=max(map(len,rows)));t.style='Table Grid'
                 for i,row in enumerate(rows):
                     for j,val in enumerate(row):t.cell(i,j).text=str(val)
-        elif typ=='tree':doc.add_paragraph(txt)
+        elif typ in ('tree','flow'):doc.add_paragraph(txt)
         else:doc.add_paragraph(txt)
     out=io.BytesIO();doc.save(out);return out.getvalue()
