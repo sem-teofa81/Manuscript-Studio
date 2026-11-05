@@ -77,6 +77,7 @@ def chapters(blocks):
 from diagrams import parse_tree, tree_drawing, flow_drawing
 from frontmatter import title_page, copyright_page, pdf_toc, IndexedDocTemplate
 from pagination import ChapterPageBreak
+from markup import inline_markup
 
 def export_pdf(blocks,opts):
     buf=io.BytesIO();page_width=float(opts.get('width',6))*inch;page_height=float(opts.get('height',9))*inch
@@ -101,7 +102,7 @@ def export_pdf(blocks,opts):
     if opts.get('toc',True):
         toc,parts=pdf_toc();story.extend(parts)
     for idx,b in enumerate(blocks):
-        typ=b.get('kind','paragraph');txt=escape(b.get('text','')).replace('\n','<br/>')
+        typ=b.get('kind','paragraph');txt=inline_markup(b.get('text',''))
         if typ=='heading':
             lvl=min(6,max(1,int(b.get('level',1))))
             if lvl==1 and opts.get('chapter_breaks',True):
@@ -126,7 +127,7 @@ def export_pdf(blocks,opts):
             rows=b.get('items',[])
             if rows:
                 n=max(map(len,rows));cellstyle=ParagraphStyle('Cell',fontName='KDPSerif',fontSize=base-1,leading=leading-1)
-                data=[[Paragraph(escape(str(row[j] if j<len(row) else '')),cellstyle) for j in range(n)] for row in rows]
+                data=[[Paragraph(inline_markup(str(row[j] if j<len(row) else '')),cellstyle) for j in range(n)] for row in rows]
                 t=Table(data,colWidths=[usable/n]*n,repeatRows=1,hAlign='LEFT')
                 t.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.35,colors.grey),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#E9F1F4')),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
                 story.append(t);story.append(Spacer(1,10))
