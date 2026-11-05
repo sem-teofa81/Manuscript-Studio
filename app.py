@@ -2,6 +2,7 @@ import json,re
 from datetime import date
 from frontmatter import export_front_cover
 from diagram_conversion import convert_diagrams
+from table_conversion import convert_tables
 import streamlit as st
 from engine import import_docx,import_google_doc,chapters,export_pdf,export_docx,block,BULLETS
 st.set_page_config(page_title='KDP Manuscript Studio',layout='wide')
@@ -64,6 +65,15 @@ else:
         st.rerun()
     if 'diagram_count' in st.session_state:
         st.success(f"Diagrammi convertiti: {st.session_state.pop('diagram_count')}")
+    st.subheader('Conversione tabelle testuali')
+    st.caption('Converte gruppi di righe separate da |, │ o tabulazioni in tabelle impaginate. Le tabelle Word già strutturate restano inalterate.')
+    if st.button('Trasforma tutte le tabelle testuali in tabelle grafiche'):
+        converted,count=convert_tables(blocks)
+        st.session_state.blocks=converted
+        st.session_state.table_count=count
+        st.rerun()
+    if 'table_count' in st.session_state:
+        st.success(f"Tabelle convertite: {st.session_state.pop('table_count')}")
     sections=chapters(blocks)
     left,right=st.columns([1,3])
     with left:
