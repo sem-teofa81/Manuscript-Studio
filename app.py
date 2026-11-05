@@ -3,6 +3,7 @@ from datetime import date
 from frontmatter import export_front_cover
 from diagram_conversion import convert_diagrams
 from table_conversion import convert_tables
+from markup import import_markdown
 import streamlit as st
 from engine import import_docx,import_google_doc,chapters,export_pdf,export_docx,block,BULLETS
 st.set_page_config(page_title='KDP Manuscript Studio',layout='wide')
@@ -14,6 +15,9 @@ with st.sidebar:
     file=st.file_uploader('DOCX esportato da Google Docs',type='docx')
     if file and st.button('Importa DOCX'):
         st.session_state.blocks=import_docx(file.getvalue());st.rerun()
+    md_file=st.file_uploader('Manoscritto Markdown (.md o .txt)',type=['md','txt'])
+    if md_file and st.button('Importa Markdown'):
+        st.session_state.blocks=import_markdown(md_file.getvalue().decode('utf-8-sig'));st.rerun()
     st.divider()
     url=st.text_input('URL Google Docs')
     secret=st.file_uploader('Credenziali account di servizio Google (JSON)',type='json')
