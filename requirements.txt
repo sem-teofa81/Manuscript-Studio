@@ -1,0 +1,6 @@
+streamlit>=1.39
+python-docx>=1.1
+reportlab>=4.2
+Pillow>=10.0
+google-api-python-client>=2.150
+google-auth>=2.35
