@@ -40,7 +40,7 @@ def import_docx(raw):
                 out.append(block('bullet',txt));continue
             if 'list number' in style or 'elenco numerato' in style:
                 out.append(block('number',txt));continue
-            if re.match(r'^\s*[│├└─+|] ',txt):out.append(block('tree',txt));continue
+            if re.match(r'^\s*[│├└─+|]',txt):out.append(block('paragraph',txt));continue
             out.append(block('paragraph',txt))
         elif el.tag.endswith('}tbl'):
             from docx.table import Table as DocTable
@@ -167,6 +167,16 @@ def export_docx(blocks,opts):
                 t=doc.add_table(rows=len(rows),cols=max(map(len,rows)));t.style='Table Grid'
                 for i,row in enumerate(rows):
                     for j,val in enumerate(row):t.cell(i,j).text=str(val)
-        elif typ in ('tree','flow'):doc.add_paragraph(txt)
+        elif typ in ('tree','flow'):
+            # Word receives the same graphical diagram as PDF when rasterization is available.
+            try:
+                from reportlab.graphics import renderPM
+                from docx.shared import Inches
+                drawing=tree_drawing(txt,320) if typ=='tree' else flow_drawing(txt,320)
+                image=io.BytesIO(renderPM.drawToString(drawing,fmt='PNG',dpi=160))
+                p=doc.add_paragraph();p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+                p.add_run().add_picture(image,width=Inches(min(4.4,float(opts.get('width',6))-2*float(opts.get('margin',.7)))))
+            except Exception:
+                doc.add_paragraph(txt)
         else:doc.add_paragraph(txt)
     out=io.BytesIO();doc.save(out);return out.getvalue()
