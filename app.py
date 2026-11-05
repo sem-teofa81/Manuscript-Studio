@@ -1,6 +1,7 @@
 import json,re
 from datetime import date
 from frontmatter import export_front_cover
+from diagram_conversion import convert_diagrams
 import streamlit as st
 from engine import import_docx,import_google_doc,chapters,export_pdf,export_docx,block,BULLETS
 st.set_page_config(page_title='KDP Manuscript Studio',layout='wide')
@@ -54,6 +55,15 @@ if not blocks:
     if st.button('Nuovo manoscritto'):
         st.session_state.blocks=[block('heading','Capitolo 1',1),block('paragraph','Scrivi qui.')];st.rerun()
 else:
+    st.subheader('Conversione diagrammi testuali')
+    st.caption('Riconosce automaticamente schemi con │, ├── e └──, unisce titolo e rami e li trasforma in blocchi grafici modificabili. Il testo originale resta invariato finché non premi il pulsante.')
+    if st.button('Trasforma tutti i diagrammi in grafici',type='primary'):
+        converted,count=convert_diagrams(blocks)
+        st.session_state.blocks=converted
+        st.session_state.diagram_count=count
+        st.rerun()
+    if 'diagram_count' in st.session_state:
+        st.success(f"Diagrammi convertiti: {st.session_state.pop('diagram_count')}")
     sections=chapters(blocks)
     left,right=st.columns([1,3])
     with left:
