@@ -76,11 +76,16 @@ def chapters(blocks):
 
 from diagrams import parse_tree, tree_drawing, flow_drawing
 from frontmatter import title_page, copyright_page, pdf_toc, IndexedDocTemplate
+from pagination import ChapterPageBreak
 
 def export_pdf(blocks,opts):
     buf=io.BytesIO();page_width=float(opts.get('width',6))*inch;page_height=float(opts.get('height',9))*inch
     margin=float(opts.get('margin',0.7))*inch
-    pdf=IndexedDocTemplate(buf,pagesize=(page_width,page_height),leftMargin=margin,rightMargin=margin,topMargin=margin,bottomMargin=margin, title=opts.get('title','Manoscritto'))
+    gutter=float(opts.get('gutter',0.12))*inch
+    inside=margin+gutter
+    usable=page_width-2*margin-gutter
+    if usable<=120:raise ValueError('Margini troppo ampi per il formato scelto.')
+    pdf=IndexedDocTemplate(buf,pagesize=(page_width,page_height),leftMargin=inside,rightMargin=margin,topMargin=margin,bottomMargin=margin, title=opts.get('title','Manoscritto'))
     base=float(opts.get('font_size',9.5));leading=base*1.45
     styles={
       'body':ParagraphStyle('BodyKDP',fontName='KDPSerif',fontSize=base,leading=leading,alignment=TA_JUSTIFY,spaceAfter=8),
@@ -89,7 +94,7 @@ def export_pdf(blocks,opts):
     }
     for i in range(1,7):
         styles[f'h{i}']=ParagraphStyle(f'Heading{i}KDP',fontName='KDPSerif-Bold',fontSize=max(base+1,19-2*(i-1)),leading=max(base+4,23-2*(i-1)),spaceBefore=15 if i==1 else 10,spaceAfter=9,keepWithNext=True)
-    story=[];number=0
+    story=[];number=0;first_chapter=True
     available_height=page_height-2*margin
     if opts.get('title_page',True):story.extend(title_page(opts,page_width-2*margin,available_height))
     if opts.get('copyright_page',True):story.extend(copyright_page(opts))
@@ -99,7 +104,9 @@ def export_pdf(blocks,opts):
         typ=b.get('kind','paragraph');txt=escape(b.get('text','')).replace('\n','<br/>')
         if typ=='heading':
             lvl=min(6,max(1,int(b.get('level',1))))
-            if lvl==1 and opts.get('chapter_breaks',True) and story:story.append(PageBreak())
+            if lvl==1 and opts.get('chapter_breaks',True):
+                story.append(ChapterPageBreak(recto=opts.get('chapters_recto',True),first=first_chapter))
+                first_chapter=False
             heading=Paragraph(txt,styles[f'h{lvl}'])
             if lvl<=2:heading._toc_level=lvl
             story.append(heading)
@@ -108,19 +115,27 @@ def export_pdf(blocks,opts):
         elif typ=='number':
             number+=1;story.append(Paragraph(f'{number}.  '+txt,styles['number']))
         elif typ in ('tree','flow'):
-            available=page_width-2*margin-12
+            available=usable-12
             drawing=tree_drawing(b.get('text',''),available) if typ=='tree' else flow_drawing(b.get('text',''),available)
-            story.append(drawing);story.append(Spacer(1,9))
+            if drawing.height>available_height-24:
+                scale=(available_height-24)/drawing.height
+                drawing.scale(scale,scale)
+                drawing.width*=scale;drawing.height*=scale
+            story.append(KeepTogether([drawing,Spacer(1,9)]))
         elif typ=='table':
             rows=b.get('items',[])
             if rows:
                 n=max(map(len,rows));cellstyle=ParagraphStyle('Cell',fontName='KDPSerif',fontSize=base-1,leading=leading-1)
                 data=[[Paragraph(escape(str(row[j] if j<len(row) else '')),cellstyle) for j in range(n)] for row in rows]
-                t=Table(data,colWidths=[(page_width-2*margin)/n]*n,repeatRows=1,hAlign='LEFT')
+                t=Table(data,colWidths=[usable/n]*n,repeatRows=1,hAlign='LEFT')
                 t.setStyle(TableStyle([('GRID',(0,0),(-1,-1),.35,colors.grey),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#E9F1F4')),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
                 story.append(t);story.append(Spacer(1,10))
     def footer(canvas,doc):
-        canvas.setFont('KDPSerif',8);canvas.drawCentredString(page_width/2,margin*.55,str(doc.page))
+        if doc.page in getattr(doc,'_blank_verso_pages',set()):return
+        if doc.page<getattr(doc,'_body_start_page',10**9):return
+        canvas.setFont('KDPSerif',8)
+        x=page_width-margin*.65 if doc.page%2 else margin*.65
+        canvas.drawCentredString(x,margin*.55,str(doc.page))
     pdf.multiBuild(story,onFirstPage=footer,onLaterPages=footer)
     return buf.getvalue()
 
