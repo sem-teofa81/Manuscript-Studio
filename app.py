@@ -81,6 +81,11 @@ else:
         st.rerun()
     if 'table_count' in st.session_state:
         st.success(f"Tabelle convertite: {st.session_state.pop('table_count')}")
+    h1=sum(b.get('kind')=='heading' and int(b.get('level',0))==1 for b in blocks)
+    h2=sum(b.get('kind')=='heading' and int(b.get('level',0))==2 for b in blocks)
+    st.info(f'Titoli riconosciuti: {h1} capitoli (H1), {h2} sezioni (H2). L’indice PDF viene generato da questi titoli.')
+    if not h1:
+        st.warning('Nessun capitolo H1 rilevato: controlla i titoli importati. Senza H1 l’indice dei capitoli non può essere compilato.')
     sections=chapters(blocks)
     left,right=st.columns([1,3])
     with left:
