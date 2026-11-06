@@ -110,7 +110,7 @@ def export_pdf(blocks,opts):
                 story.append(ChapterPageBreak(recto=opts.get('chapters_recto',True),first=first_chapter))
                 first_chapter=False
             heading=Paragraph(txt,styles[f'h{lvl}'])
-            if lvl<=2:heading._toc_level=lvl
+            if lvl==1:heading._toc_level=lvl
             story.append(heading)
         elif typ=='paragraph':story.append(Paragraph(txt,styles['body']))
         elif typ=='bullet':story.append(Paragraph(escape(BULLETS.get(opts.get('bullet','Pallino'),'•'))+'  '+txt,styles['bullet']))
@@ -168,7 +168,7 @@ def export_docx(blocks,opts):
     if opts.get('toc',True):
         doc.add_heading('Indice',0)
         p=doc.add_paragraph()
-        fld=OxmlElement('w:fldSimple');fld.set(qn('w:instr'),'TOC \\o "1-2" \\h \\z \\u')
+        fld=OxmlElement('w:fldSimple');fld.set(qn('w:instr'),'TOC \\o "1-1" \\h \\z \\u')
         p._p.append(fld)
         doc.add_page_break()
     for b in blocks:
