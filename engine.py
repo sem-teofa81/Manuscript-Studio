@@ -3,6 +3,7 @@ import io, re, copy
 from dataclasses import dataclass, asdict
 from xml.sax.saxutils import escape
 from docx import Document
+from markup import normalize_markup_blocks
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, ListFlowable, ListItem, Table, TableStyle, KeepTogether, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
@@ -46,7 +47,7 @@ def import_docx(raw):
             from docx.table import Table as DocTable
             t=DocTable(el,doc); rows=[[c.text.strip() for c in row.cells] for row in t.rows]
             out.append(block('table',items=rows))
-    return out
+    return normalize_markup_blocks(out)
 
 def import_google_doc(data):
     out=[]
@@ -66,7 +67,7 @@ def import_google_doc(data):
                     vals.append(' '.join(x.get('textRun',{}).get('content','').strip() for p in cell.get('content',[]) for x in p.get('paragraph',{}).get('elements',[])))
                 rows.append(vals)
             out.append(block('table',items=rows))
-    return out
+    return normalize_markup_blocks(out)
 
 def chapters(blocks):
     indexes=[i for i,b in enumerate(blocks) if b['kind']=='heading' and b['level']==1]
