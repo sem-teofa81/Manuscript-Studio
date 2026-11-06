@@ -61,7 +61,7 @@ def normalize_markup_blocks(blocks):
         if not lines:
             normalized.append(b)
             continue
-        if any(re.match(r'^\\s*(?:#{1,6}\\s+|[-*+]\\s+|\\d+[.)]\\s+|\\x60{3})',line) for line in lines) or (
+        if any(re.match(r'^\s*(?:#{1,6}\s+|[-*+]\s+|\d+[.)]\s+|\x60{3})',line) for line in lines) or (
             len(lines)>1 and any('|' in line for line in lines)
         ):
             parsed=import_markdown(text)
@@ -75,7 +75,7 @@ def normalize_markup_blocks(blocks):
         b=normalized[i]
         if b.get('kind')=='paragraph' and '|' in b.get('text','') and i+1<len(normalized):
             separator=normalized[i+1]
-            if separator.get('kind')=='paragraph' and re.fullmatch(r'\\s*\\|?[\\s:|\\-]+\\|[\\s:|\\-]*',separator.get('text','')):
+            if separator.get('kind')=='paragraph' and re.fullmatch(r'\s*\|?[\s:|\-]+\|[\s:|\-]*',separator.get('text','')):
                 header=[c.strip() for c in b['text'].strip().strip('|').split('|')]
                 rows=[header];j=i+2
                 while j<len(normalized) and normalized[j].get('kind')=='paragraph' and '|' in normalized[j].get('text',''):
