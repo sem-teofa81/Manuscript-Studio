@@ -44,7 +44,7 @@ with st.sidebar:
     o['copyright_note']=st.text_area('Note editoriali / diritti',o.get('copyright_note',''),height=70)
     o['title_page']=st.checkbox('Pagina del titolo',value=o.get('title_page',True))
     o['copyright_page']=st.checkbox('Pagina dei diritti',value=o.get('copyright_page',True))
-    o['toc']=st.checkbox('Indice automatico H1–H2',value=o.get('toc',True))
+    o['toc']=st.checkbox('Indice automatico dei soli capitoli (H1)',value=o.get('toc',True))
     o['bullet']=st.selectbox('Simbolo elenchi',list(BULLETS),index=list(BULLETS).index(o['bullet']))
     for k,label,minimum,maximum,step in [('width','Larghezza pollici',4.,9.,.25),('height','Altezza pollici',6.,12.,.25),('margin','Margini pollici',.3,1.2,.05),('font_size','Dimensione testo pt',8.,14.,.25)]:
         o[k]=st.number_input(label,minimum,maximum,float(o[k]),step)
@@ -83,7 +83,7 @@ else:
         st.success(f"Tabelle convertite: {st.session_state.pop('table_count')}")
     h1=sum(b.get('kind')=='heading' and int(b.get('level',0))==1 for b in blocks)
     h2=sum(b.get('kind')=='heading' and int(b.get('level',0))==2 for b in blocks)
-    st.info(f'Titoli riconosciuti: {h1} capitoli (H1), {h2} sezioni (H2). L’indice PDF viene generato da questi titoli.')
+    st.info(f'Titoli riconosciuti: {h1} capitoli (H1), {h2} sezioni (H2). L’indice PDF contiene solo i capitoli H1.')
     if not h1:
         st.warning('Nessun capitolo H1 rilevato: controlla i titoli importati. Senza H1 l’indice dei capitoli non può essere compilato.')
     sections=chapters(blocks)
