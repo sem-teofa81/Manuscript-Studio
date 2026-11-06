@@ -53,44 +53,42 @@ def _is_md_separator(text):
     )
 
 def normalize_markup_blocks(blocks):
-    """Recognize Word and Google Docs Markdown headings, lists and tables."""
-    normalized=[]
+    """Recognize headings and remove Markdown fences from imported DOCX."""
+    from engine import block
+    out=[]
     for b in blocks:
         if b.get('kind')!='paragraph':
-            normalized.append(b)
+            out.append(b);continue
+        raw=str(b.get('text','')).strip()
+        if not raw:continue
+        if raw.startswith(chr(96)*3):
             continue
-        value=b.get('text','').strip()
-        if not value:continue
-        lines=value.splitlines()
-        chapter=re.fullmatch(r'\\s*(?:\\*\\*)?\\s*(?:#{1,6}\\s*)?(?:capitolo|chapter)\\s+(\\d+|[IVXLCDM]+)\\s*(?:[.:–—-]\\s*)?(.+?)\\s*(?:\\*\\*)?\\s*',value,re.IGNORECASE)
-        if chapter and len(lines)==1:
-            title=re.sub(r'^#{1,6}\\s*','',value.strip('* ').strip())
-            normalized.append({'kind':'heading','text':title,'level':1,'items':[]})
-            continue
-        h=re.fullmatch(r'\\s*(#{1,6})\\s+(.+?)\\s*',value)
-        if h and len(lines)==1:
-            normalized.append({'kind':'heading','text':h.group(2),'level':len(h.group(1)),'items':[]})
-            continue
-        if len(lines)>1 and any(re.match(r'^\\s*(?:#{1,6}\\s+|[-*+]\\s+|\\d+[.)]\\s+)',line) for line in lines):
-            normalized.extend(import_markdown(value))
-        elif len(lines)>1 and any('|' in line for line in lines):
-            normalized.extend(import_markdown(value))
-        elif re.match(r'^\\s*[-*+]\\s+',value):
-            normalized.append({'kind':'bullet','text':re.sub(r'^\\s*[-*+]\\s+','',value),'level':0,'items':[]})
-        else:normalized.append(b)
+        chapter=re.fullmatch(r'(?:#{1,6}\s*)?(?:\*\*)?\s*(?:capitolo|chapter)\s+(\d+|[IVXLCDM]+)\s*[:.\-–—]?\s*(.+?)\s*(?:\*\*)?',raw,re.I)
+        numbered=re.fullmatch(r'(\d{1,2})\.\s+(.{5,110})',raw)
+        subsection=re.fullmatch(r'(\d{1,2}(?:\.\d+){1,3})\s+(.{4,140})',raw)
+        md_heading=re.fullmatch(r'(#{1,6})\s+(.+)',raw)
+        if chapter:
+            out.append(block('heading',raw.strip('* #'),1));continue
+        if subsection:
+            out.append(block('heading',raw,2 if subsection.group(1).count('.')==1 else 3));continue
+        if md_heading:
+            out.append(block('heading',md_heading.group(2).strip(),len(md_heading.group(1))));continue
+        if numbered and 1<=int(numbered.group(1))<=40 and not numbered.group(2).endswith(('.', ';', '?', '!')):
+            out.append(block('heading',raw,1));continue
+        if '\n' in raw and any(re.match(r'^\s*(?:#{1,6}\s+|[-*+]\s+)',line) for line in raw.splitlines()):
+            out.extend(import_markdown(raw));continue
+        out.append(b)
     merged=[];i=0
-    while i<len(normalized):
-        b=normalized[i]
-        if b.get('kind')=='paragraph' and '|' in b.get('text','') and i+1<len(normalized):
-            sep=normalized[i+1]
-            if sep.get('kind')=='paragraph' and _is_md_separator(sep.get('text','')):
-                header=[x.strip() for x in b['text'].strip().strip('|').split('|')]
-                rows=[header];j=i+2
-                while j<len(normalized) and normalized[j].get('kind')=='paragraph' and '|' in normalized[j].get('text',''):
-                    cells=[x.strip() for x in normalized[j]['text'].strip().strip('|').split('|')]
-                    if len(cells)!=len(header):break
-                    rows.append(cells);j+=1
-                if len(rows)>1:
-                    merged.append({'kind':'table','text':'','level':0,'items':rows});i=j;continue
+    while i<len(out):
+        b=out[i]
+        if b.get('kind')=='paragraph' and '|' in b.get('text','') and i+1<len(out) and out[i+1].get('kind')=='paragraph' and _is_md_separator(out[i+1].get('text','')):
+            head=[v.strip() for v in b['text'].strip().strip('|').split('|')]
+            rows=[head];j=i+2
+            while j<len(out) and out[j].get('kind')=='paragraph' and '|' in out[j].get('text',''):
+                cells=[v.strip() for v in out[j]['text'].strip().strip('|').split('|')]
+                if len(cells)!=len(head):break
+                rows.append(cells);j+=1
+            if len(rows)>1:
+                merged.append(block('table',items=rows));i=j;continue
         merged.append(b);i+=1
     return merged
