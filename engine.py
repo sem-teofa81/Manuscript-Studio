@@ -138,7 +138,7 @@ def export_pdf(blocks,opts):
         canvas.setFont('KDPSerif',8)
         x=page_width-margin*.65 if doc.page%2 else margin*.65
         canvas.drawCentredString(x,margin*.55,str(doc.page))
-    pdf.multiBuild(story,onFirstPage=footer,onLaterPages=footer)
+    pdf.multiBuild(story,onFirstPage=footer,onLaterPages=footer,maxPasses=10)
     return buf.getvalue()
 
 def export_docx(blocks,opts):
@@ -166,7 +166,7 @@ def export_docx(blocks,opts):
         if opts.get('copyright_note'):doc.add_paragraph(opts['copyright_note'])
         doc.add_page_break()
     if opts.get('toc',True):
-        doc.add_heading('Indice',0)
+        doc.add_heading('Sommario',0)
         p=doc.add_paragraph()
         fld=OxmlElement('w:fldSimple');fld.set(qn('w:instr'),'TOC \\o "1-1" \\h \\z \\u')
         p._p.append(fld)
