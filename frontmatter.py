@@ -36,18 +36,23 @@ def pdf_toc():
     toc.levelStyles=[
         ParagraphStyle('TOC1',fontName='KDPSerif',fontSize=10,leading=16,leftIndent=0,firstLineIndent=0,spaceAfter=5),
         ParagraphStyle('TOC2',fontName='KDPSerif',fontSize=9,leading=14,leftIndent=16,firstLineIndent=0,spaceAfter=3)]
-    heading=Paragraph('Indice',ParagraphStyle('TOCTitle',fontName='KDPSerif-Bold',fontSize=19,leading=26,spaceAfter=24))
+    heading=Paragraph('Sommario',ParagraphStyle('TOCTitle',fontName='KDPSerif-Bold',fontSize=19,leading=26,spaceAfter=24))
     return toc,[heading,toc,PageBreak()]
 
 class IndexedDocTemplate(SimpleDocTemplate):
-    def afterFlowable(self,flowable):
-        if not isinstance(flowable,Paragraph):return
-        if not getattr(flowable,'_toc_level',None):return
-        level=flowable._toc_level-1
-        text=flowable.getPlainText()
-        key=f'heading-{self.seq.nextf("heading")}'
+    """Record only main chapter headings for a multi-pass numbered PDF summary."""
+    def beforeDocument(self):
+        self._chapter_bookmark_counter = 0
+
+    def afterFlowable(self, flowable):
+        if not isinstance(flowable, Paragraph):
+            return
+        if getattr(flowable, '_toc_level', None) != 1:
+            return
+        self._chapter_bookmark_counter += 1
+        key = 'chapter-%04d' % self._chapter_bookmark_counter
         self.canv.bookmarkPage(key)
-        self.notify('TOCEntry',(level,text,self.page,key))
+        self.notify('TOCEntry', (0, flowable.getPlainText(), self.page, key))
 
 def export_front_cover(opts):
     """Separate FRONT COVER DRAFT ONLY: no spine/back/bleed; not a KDP upload-ready wrap."""
